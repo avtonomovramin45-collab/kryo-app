@@ -1,0 +1,888 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline' https://telegram.org; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; font-src 'none'; media-src 'none'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex, nofollow">
+<meta name="color-scheme" content="light dark">
+<title>Kryo</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+/* Layout: первоклассное приложение iOS. Один яркий объект — ледяной пропуск; всё остальное спокойное и системное:
+   сплошные сгруппированные списки с цветными значками, стекло только на плавающем (панель вкладок, шапка при прокрутке, шторка). */
+:root {
+  --bg: #f2f2f7;                /* системный сгруппированный фон */
+  --cell: #ffffff;
+  --label: #0d1220;
+  --secondary: rgba(60, 60, 67, .6);
+  --tertiary: rgba(60, 60, 67, .3);
+  --sep: rgba(60, 60, 67, .16);
+  --fill: rgba(120, 120, 128, .14);
+  --kryo: #1f5bff;              /* единственный акцент: действие */
+  --ice: #5ec8f2;               /* лёд: данные трафика */
+  --ok: #26a65b; --warn: #f08c00; --bad: #ef4444;
+  --i-blue: #1f5bff; --i-cyan: #12a7e0; --i-teal: #0fae96; --i-indigo: #5856d6; --i-orange: #ff9500; --i-green: #34c759; --i-red: #ff3b30; --i-gray: #8e8e93;
+  --glass-tint: rgba(255, 255, 255, .55);
+  --thumb: #ffffff;
+  --bar: rgba(252, 252, 253, .88); --bar-edge: rgba(0, 0, 0, .07); --tab-ink: #404046; --lens: rgba(255, 255, 255, .97);
+  --glass-rim: rgba(255, 255, 255, .9);
+  --glass-rim2: rgba(255, 255, 255, .45);
+  --shadow-float: 0 8px 28px rgba(16, 24, 48, .14), 0 1px 3px rgba(16, 24, 48, .08);
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --spring: cubic-bezier(.32, .72, 0, 1);
+  --soft: cubic-bezier(.25, 1.25, .5, 1);
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #000000; --cell: #1c1c1e; --label: #f4f6fb; --secondary: rgba(235, 235, 245, .6); --tertiary: rgba(235, 235, 245, .3);
+  --sep: rgba(84, 84, 88, .6); --fill: rgba(120, 120, 128, .28); --kryo: #4c84ff; --ice: #6fd2ff; --ok: #30d158; --warn: #ff9f0a; --bad: #ff453a;
+  --glass-tint: rgba(36, 36, 40, .55); --glass-rim: rgba(255, 255, 255, .32); --glass-rim2: rgba(255, 255, 255, .1);
+  --thumb: #636366; --bar: rgba(30, 30, 33, .86); --bar-edge: rgba(255, 255, 255, .1); --tab-ink: #c7c7cc; --lens: rgba(58, 58, 62, .97);
+  --thumb: #636366; --bar: rgba(30, 30, 33, .86); --bar-edge: rgba(255, 255, 255, .1); --tab-ink: #c7c7cc; --lens: rgba(58, 58, 62, .97);
+  --gl1: #8fdcff; --gl2: #3a6dff; --gl3: #9a6bff; --g1-op: .22; --g2-op: .14;
+  --bloom: 0 0 0 .5px rgba(255,255,255,.22), 0 22px 50px -18px rgba(0,0,0,.7);
+  --shadow-float: 0 8px 28px rgba(0, 0, 0, .55), 0 1px 3px rgba(0, 0, 0, .4); color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #000000; --cell: #1c1c1e; --label: #f4f6fb; --secondary: rgba(235, 235, 245, .6); --tertiary: rgba(235, 235, 245, .3);
+  --sep: rgba(84, 84, 88, .6); --fill: rgba(120, 120, 128, .28); --kryo: #4c84ff; --ice: #6fd2ff; --ok: #30d158; --warn: #ff9f0a; --bad: #ff453a;
+  --glass-tint: rgba(36, 36, 40, .55); --glass-rim: rgba(255, 255, 255, .32); --glass-rim2: rgba(255, 255, 255, .1);
+  --thumb: #636366; --bar: rgba(30, 30, 33, .86); --bar-edge: rgba(255, 255, 255, .1); --tab-ink: #c7c7cc; --lens: rgba(58, 58, 62, .97);
+  --gl1: #8fdcff; --gl2: #3a6dff; --gl3: #9a6bff; --g1-op: .22; --g2-op: .14;
+  --bloom: 0 0 0 .5px rgba(255,255,255,.22), 0 22px 50px -18px rgba(0,0,0,.7);
+  --shadow-float: 0 8px 28px rgba(0, 0, 0, .55), 0 1px 3px rgba(0, 0, 0, .4); color-scheme: dark }
+
+* { -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--label); font-family: var(--font); font-size: 17px; line-height: 1.29; letter-spacing: -.022em; -webkit-font-smoothing: antialiased; overflow: hidden; }
+
+/* экран, который уезжает назад под шторку */
+.stage { position: fixed; inset: 0; background: var(--bg); overflow: hidden; transform-origin: 50% 0;
+  transition: transform .5s var(--spring), border-radius .5s var(--spring), filter .5s var(--spring); }
+body.sheet-open .stage { transform: translateY(calc(env(safe-area-inset-top, 0px) + 10px)) scale(.93); border-radius: 22px; filter: brightness(.8); }
+.scroll { height: 100%; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; }
+.scroll::-webkit-scrollbar { display: none; }
+.wrap { max-width: 440px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 0 128px; }
+
+/* шапка: прозрачная, при прокрутке — тонкое стекло с маленьким заголовком */
+.navbar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 3; height: 44px; display: grid; place-items: center;
+  margin: 0 calc(-1 * max(16px, env(safe-area-inset-left, 0px))); transition: background .25s, box-shadow .25s; }
+.navbar.solid { background: var(--glass-tint); backdrop-filter: blur(20px) saturate(180%); -webkit-backdrop-filter: blur(20px) saturate(180%); box-shadow: 0 .5px 0 var(--sep); }
+.navbar .small { font-weight: 600; font-size: 17px; opacity: 0; transform: translateY(5px); transition: opacity .2s, transform .25s var(--spring); }
+.navbar.solid .small { opacity: 1; transform: none; }
+h1 { font-size: 34px; line-height: 1.12; font-weight: 700; letter-spacing: .012em; margin: 4px 0 16px; text-wrap: balance; }
+
+/* ── пропуск: единственный яркий объект ── */
+.passbox { perspective: 1100px; margin-bottom: 28px; }
+.pass { --flip: 0deg; position: relative; aspect-ratio: 1.586; max-width: 100%; transform-style: preserve-3d; cursor: pointer; touch-action: pan-y;
+  transform: rotateX(var(--rx, 0deg)) rotateY(calc(var(--flip) + var(--ry, 0deg))) scale(var(--press, 1)); transition: transform .7s var(--soft); }
+.pass.flip { --flip: 180deg; }
+.passbox.tilting .pass { transition: transform .12s ease-out; }
+.face { position: absolute; inset: 0; border-radius: 20px; overflow: hidden; backface-visibility: hidden; -webkit-backface-visibility: hidden; color: #fff;
+  background: radial-gradient(120% 90% at 15% 0%, #3d7bff 0%, rgba(61,123,255,0) 55%), linear-gradient(160deg, #1d56f0 0%, #0c2a8f 48%, #071647 100%);
+  box-shadow: 0 1px 0 rgba(255,255,255,.35) inset, 0 0 0 .5px rgba(255,255,255,.18) inset, 0 22px 44px -12px rgba(9, 30, 110, .55), 0 6px 14px rgba(9, 30, 110, .2); }
+/* окантовка пропуска: тонкая белая кромка, по ней бегут два блика, снаружи — мягкое свечение того же света */
+/* свечение пропуска как от источника света: за картой её размытая яркая копия (свет на фон) + блум по краю с плавным затуханием,
+   по тонкой кромке медленно скользит блик. Свет за картой к середине переворота уходит на другую сторону — иначе мутнит оборот. */
+/* подсветка — один WebGL-шейдер поверх карты: свет считается для каждого пикселя по расстоянию до кромки и положению вдоль контура,
+   поэтому концы лент плавные, движение 60 кадров, а сердцевина, ореол и свет на поверхности — физически согласованы.
+   Слой наклоняется вместе с картой; на время переворота гаснет. */
+.rim { position: absolute; inset: 0; border-radius: 20px; padding: 1px; z-index: 2; pointer-events: none; background: rgba(255,255,255,.2);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; }
+.ledgl { position: absolute; left: -40px; top: -40px; width: calc(100% + 80px); height: calc(100% + 80px); z-index: 2; pointer-events: none;
+  transform: rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) scale(var(--press, 1)); transition: transform .7s var(--soft), opacity .25s; }
+.passbox.tilting .ledgl { transition: transform .12s ease-out, opacity .25s; }
+.passbox.flipping .ledgl { opacity: 0; transition-duration: .7s, .08s; }
+.passbox { position: relative; }
+.pass { z-index: 1; }
+.glowbox { position: absolute; inset: 0; z-index: 0; pointer-events: none; transform: rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) scale(var(--press, 1)); transition: transform .7s var(--soft); }
+.passbox.tilting .glowbox { transition: transform .12s ease-out; }
+/* свет — под заголовком и списками, а не поверх */
+h1, .group, .gfoot, .actions, .ghead, .demo { position: relative; z-index: 1; }
+.glowbox i:not(.led) { position: absolute; border-radius: 40px; background: linear-gradient(150deg, var(--gl1) 0%, var(--gl2) 50%, var(--gl3) 100%); animation: ambient 4s ease-in-out infinite; }
+.glowbox .g1 { inset: -5% -3% -9%; filter: blur(18px) saturate(1.4); opacity: var(--g1-op); }
+.glowbox .g2 { inset: -20% -10% -28%; filter: blur(48px) saturate(1.3); opacity: var(--g2-op); animation-delay: -2s; }
+@keyframes ambient { 0%, 100% { transform: scale(.97); } 50% { transform: scale(1.03); } }
+.face { box-shadow: 0 1px 0 rgba(255,255,255,.35) inset, 0 0 0 .5px rgba(255,255,255,.18) inset, var(--bloom) !important; }
+:root { --gl1: #4fb6ff; --gl2: #2457ff; --gl3: #8a5cff; --g1-op: .3; --g2-op: .16;
+  --bloom: 0 0 0 .5px rgba(255,255,255,.3), 0 20px 44px -16px rgba(9,30,110,.5); }
+.face canvas.ice { position: absolute; inset: 0; width: 100%; height: 100%; }
+.face .glare { position: absolute; inset: 0; pointer-events: none; mix-blend-mode: soft-light; opacity: .9;
+  background: radial-gradient(circle at var(--gx, 25%) var(--gy, 10%), rgba(255,255,255,.75), rgba(255,255,255,0) 50%); }
+.front { display: grid; grid-template-rows: auto 1fr auto; padding: 18px 20px 18px; }
+.front .top { position: relative; display: flex; align-items: center; gap: 10px; }
+.front .top img { width: 30px; height: 30px; border-radius: 8px; box-shadow: 0 0 0 .5px rgba(255,255,255,.3); }
+.front .brand { font-weight: 700; font-size: 16px; letter-spacing: .01em; }
+.front .qrbadge { margin-left: auto; width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; background: rgba(255,255,255,.14); box-shadow: inset 0 0 0 .5px rgba(255,255,255,.25); }
+.front .qrbadge svg { width: 17px; height: 17px; }
+.front .tier { position: relative; align-self: end; padding-bottom: 14px; }
+.tier .k { font-size: 13px; opacity: .72; letter-spacing: 0; }
+.tier .v { font-size: 32px; font-weight: 700; letter-spacing: .005em; line-height: 1.1; }
+.front .fields { position: relative; display: grid; grid-template-columns: 1fr auto; gap: 10px; padding-top: 12px; border-top: .5px solid rgba(255,255,255,.22); }
+.fields .k { font-size: 12px; opacity: .68; letter-spacing: 0; }
+.fields .v { font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; margin-top: 1px; }
+.back { transform: rotateY(180deg); display: grid; grid-template-columns: auto 1fr; gap: 16px; align-items: center; padding: 20px; }
+.qr { position: relative; width: 112px; height: 112px; background: #fff; border-radius: 14px; padding: 8px; }
+.qr canvas { width: 100%; height: 100%; image-rendering: pixelated; }
+.back .k { font-size: 13px; opacity: .72; }
+.back .v { font-size: 16px; font-weight: 600; margin-top: 2px; text-wrap: balance; }
+.pnobig { position: relative; font-size: 34px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: .04em; padding: 0 4px; }
+.pno { font-size: 12px; opacity: .6; margin-top: 8px; font-variant-numeric: tabular-nums; }
+.back p { position: relative; color: rgba(255,255,255,.78); font-size: 13px; line-height: 1.38; margin: 8px 0 0; }
+
+/* ── сгруппированные списки ── */
+.group { background: var(--cell); border-radius: 14px; overflow: hidden; }
+/* язык света из пропуска — сдержанно на других элементах: выбранный тариф «включается» тонкой световой кромкой,
+   кольцо и полоса прогресса светятся льдом, у главной кнопки — светлая кромка сверху, как у карты */
+.planlist { display: grid; gap: 10px; }
+.planlist .plan { background: var(--cell); border-radius: 14px; min-height: 64px; box-shadow: 0 0 0 .5px var(--sep);
+  transition: box-shadow .35s var(--spring), transform .3s var(--soft); }
+.planlist .plan[aria-pressed="true"] { box-shadow: inset 0 0 0 1.5px var(--kryo), 0 0 0 4px color-mix(in srgb, var(--kryo) 12%, transparent), 0 10px 26px -10px color-mix(in srgb, var(--kryo) 60%, transparent); }
+.planlist .plan:active { transform: scale(.985); }
+.ghead { font-size: 15px; font-weight: 600; color: var(--label); margin: 26px 4px 8px; letter-spacing: -.01em; }
+.gfoot { font-size: 13px; color: var(--secondary); margin: 8px 16px 0; line-height: 1.36; text-wrap: pretty; }
+.cell { display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 8px 16px; position: relative; }
+.cell + .cell::before, .cell + .ans + .cell::before { content: ""; position: absolute; top: 0; right: 0; left: 58px; border-top: .5px solid var(--sep); }
+.group.plain .cell + .cell::before { left: 16px; }
+.cell .t { min-width: 0; flex: 1; }
+.cell .t small { display: block; font-size: 13px; color: var(--secondary); margin-top: 1px; letter-spacing: -.005em; }
+.cell .val { margin-left: auto; color: var(--secondary); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+.ico { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; color: #fff; flex: none; font-size: 14px; font-weight: 700;
+  box-shadow: inset 0 .5px 0 rgba(255,255,255,.3); }
+.ico svg { width: 18px; height: 18px; }
+button.cell { appearance: none; border: 0; width: 100%; background: none; color: inherit; font: inherit; letter-spacing: inherit; text-align: left; cursor: pointer; transition: background .2s; }
+button.cell:active { background: var(--fill); transition-duration: 0s; }
+.chev { margin-left: auto; color: var(--tertiary); flex: none; transition: transform .3s var(--spring); }
+.faq[aria-expanded="true"] .chev { transform: rotate(90deg); }
+.ans { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .35s var(--spring); }
+.ans > div { overflow: hidden; }
+.ans.open { grid-template-rows: 1fr; }
+.ans p { margin: 0; padding: 0 16px 14px 58px; color: var(--secondary); font-size: 15px; line-height: 1.4; }
+.ring[hidden] { display: none; }
+.ring { width: 30px; height: 30px; flex: none; transform: rotate(-90deg); }
+.ring circle { fill: none; stroke-width: 4; }
+.ring .bg { stroke: var(--fill); }
+.ring .fg { stroke: var(--ice); stroke-linecap: round; transition: stroke-dasharray .9s var(--spring); filter: drop-shadow(0 0 2.5px var(--ice)); }
+.bar { height: 6px; border-radius: 3px; background: var(--fill); overflow: hidden; width: 72px; }
+.bar i { display: block; height: 100%; border-radius: 3px; background: linear-gradient(90deg, var(--kryo), var(--ice)); box-shadow: 0 0 8px color-mix(in srgb, var(--ice) 70%, transparent); transition: width .9s var(--spring); }
+.tag { font-size: 13px; color: var(--secondary); margin-left: auto; white-space: nowrap; }
+.pill { display: inline-block; font-size: 12px; font-weight: 600; color: var(--ok); background: color-mix(in srgb, var(--ok) 14%, transparent); padding: 2px 7px; border-radius: 6px; margin-left: 6px; vertical-align: 1px; letter-spacing: 0; }
+.radio { margin-left: 12px; width: 22px; height: 22px; border-radius: 50%; flex: none; box-shadow: inset 0 0 0 1.5px var(--tertiary); display: grid; place-items: center; transition: box-shadow .25s; }
+.radio svg { width: 13px; height: 13px; color: #fff; opacity: 0; transform: scale(.5); transition: opacity .2s, transform .35s var(--soft); }
+[aria-pressed="true"] .radio { box-shadow: inset 0 0 0 11px var(--kryo); }
+[aria-pressed="true"] .radio svg { opacity: 1; transform: none; }
+.price { font-weight: 600; font-variant-numeric: tabular-nums; margin-left: auto; }
+.link { color: var(--kryo); }
+.stores { display: flex; gap: 6px; margin-top: 8px; }
+.chip { font-size: 13px; font-weight: 600; color: var(--kryo); background: color-mix(in srgb, var(--kryo) 12%, transparent); padding: 6px 10px; border-radius: 999px; text-decoration: none; white-space: nowrap; }
+.chip:active { opacity: .6; }
+
+.actions { display: grid; gap: 10px; margin-top: 18px; }
+.btn { appearance: none; border: 0; width: 100%; min-height: 52px; padding: 14px; border-radius: 14px; background: var(--kryo); color: #fff; font: 600 17px var(--font); letter-spacing: -.02em; cursor: pointer;
+  transition: transform .3s var(--soft), opacity .2s;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.3), 0 10px 24px -10px color-mix(in srgb, var(--kryo) 70%, transparent); }
+.btn:active { transform: scale(.97); opacity: .85; transition-duration: .1s; }
+.btn.tinted { background: color-mix(in srgb, var(--kryo) 13%, transparent); color: var(--kryo); box-shadow: none; }
+.demo { margin-top: 30px; }
+.demo .gfoot { margin: 0 4px 8px; }
+.seg { position: relative; display: grid; grid-template-columns: repeat(3, 1fr); padding: 2px; border-radius: 9px; background: var(--fill); }
+.seg button { position: relative; z-index: 1; appearance: none; border: 0; background: none; color: var(--label); font: 500 13px var(--font); padding: 7px 4px; cursor: pointer; }
+.seg .thumb { position: absolute; top: 2px; bottom: 2px; left: 2px; width: calc((100% - 4px) / 3); border-radius: 7px; background: var(--thumb);
+  box-shadow: 0 3px 8px rgba(0,0,0,.12), 0 0 0 .5px rgba(0,0,0,.04); transition: transform .4s var(--soft); }
+
+.screen[hidden] { display: none !important; }
+/* разделы переключаются мгновенно, как в Telegram: проявление с нуля давало вспышку */
+
+/* ── плавающая стеклянная панель вкладок с линзой ── */
+.tabbar { position: fixed; z-index: 4; left: 50%; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); width: min(370px, calc(100% - 32px));
+  transform: translateX(-50%); display: grid; grid-template-columns: repeat(4, 1fr); padding: 5px; border-radius: 999px; isolation: isolate;
+  touch-action: none; user-select: none; -webkit-user-select: none;
+  background: var(--bar); backdrop-filter: blur(20px) saturate(180%); -webkit-backdrop-filter: blur(20px) saturate(180%);
+  box-shadow: 0 0 0 .5px var(--bar-edge), inset 0 1px 0 var(--glass-rim2), var(--shadow-float);
+  transition: transform .45s var(--spring), opacity .3s; }
+.refract .tabbar { backdrop-filter: url(#lgf) blur(8px) saturate(180%); }
+.tabbar.held { transform: translateX(-50%) scale(1.03); }
+body.sheet-open .tabbar { transform: translateX(-50%) translateY(140%); opacity: 0; }
+.tabbar button { position: relative; z-index: 2; appearance: none; border: 0; background: none; color: var(--tab-ink); font: 600 10.5px var(--font); letter-spacing: 0;
+  display: grid; justify-items: center; gap: 2px; padding: 7px 0 6px; cursor: pointer; transition: color .2s; }
+.tabbar button[aria-current="page"] { color: var(--kryo); }
+.tabbar.lens button[aria-current="page"] { color: var(--tab-ink); }
+.tabbar svg { width: 26px; height: 26px; }
+.bubble { position: absolute; z-index: 4; top: 5px; bottom: 5px; left: 5px; width: calc((100% - 10px) / 4); border-radius: 999px; overflow: hidden; pointer-events: none;
+  background: var(--fill); transition: transform .5s var(--soft), top .35s var(--soft), bottom .35s var(--soft), left .35s var(--soft), width .35s var(--soft), background .3s, box-shadow .3s, opacity .2s .05s; }
+.lensrow { position: absolute; top: 0; left: 0; display: grid; grid-template-columns: repeat(4, 1fr); color: var(--kryo); opacity: 0;
+  transition: opacity .18s, transform .5s var(--soft), top .35s var(--soft), left .35s var(--soft), scale .35s var(--soft), filter .3s; }
+.lensrow .li { display: grid; justify-items: center; gap: 2px; padding: 7px 0 6px; font: 600 10.5px var(--font); letter-spacing: 0; }
+.lensrow svg { width: 26px; height: 26px; }
+.bubble::after { content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 2.5px; opacity: 0; filter: blur(1.2px); transition: opacity .25s;
+  background: conic-gradient(from 200deg, #ff6aa8, #ffb340, #fff07a, #6ff0c4, #4cb4ff, #9b7bff, #ff6aa8);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; }
+.tabbar.lens .bubble::after { opacity: .5; }
+.tabbar.lens .bubble { top: -8px; bottom: -8px; left: -8px; width: calc((100% - 10px) / 4 + 26px); background: var(--lens);
+  box-shadow: inset 0 1px 1px rgba(255,255,255,.9), 0 0 0 .5px var(--bar-edge), 0 10px 26px rgba(10,20,50,.2), 0 2px 6px rgba(10,20,50,.1); }
+.tabbar.lens .lensrow { opacity: 1; top: 13px; left: 13px; scale: 1.14; filter: drop-shadow(-.6px 0 rgba(255,96,0,.3)) drop-shadow(.6px 0 rgba(0,150,255,.35)); }
+.tabbar.dragging .bubble { transition: top .35s var(--soft), bottom .35s var(--soft), left .35s var(--soft), width .35s var(--soft), background .3s, box-shadow .3s; }
+.tabbar.dragging .lensrow { transition: top .35s var(--soft), left .35s var(--soft), scale .35s var(--soft), filter .3s; }
+
+/* WebGL-линза поверх панели; пока она видна, серая плашка прячется */
+.lenscv { position: fixed; z-index: 5; pointer-events: none; opacity: 0; transition: opacity .14s; }
+.lenscv.on { opacity: 1; transition: none; }
+.tabbar.gl .bubble { opacity: 0; transition: opacity .08s; }
+.tabbar.gl button[aria-current="page"] { color: var(--tab-ink); }
+body.sheet-open .lenscv { opacity: 0; }
+
+/* ── шторка (толстое стекло) ── */
+.scrim { position: fixed; inset: 0; z-index: 8; background: rgba(0,0,0,.22); opacity: 0; pointer-events: none; transition: opacity .4s var(--spring); }
+body.sheet-open .scrim { opacity: 1; pointer-events: auto; }
+.sheet { position: fixed; z-index: 9; left: 0; right: 0; bottom: 0; max-width: 440px; margin: 0 auto; border-radius: 30px 30px 0 0;
+  background: color-mix(in srgb, var(--bg) 82%, transparent); backdrop-filter: blur(40px) saturate(180%); -webkit-backdrop-filter: blur(40px) saturate(180%);
+  box-shadow: inset 0 1px 0 var(--glass-rim2), 0 -10px 40px rgba(0,0,0,.18);
+  padding-top: 8px; padding-bottom: calc(18px + env(safe-area-inset-bottom, 0px)); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  transform: translateY(105%); transition: transform .5s var(--spring); touch-action: none; }
+body.sheet-open .sheet { transform: translateY(var(--drag, 0px)); }
+.sheet.dragging { transition: none; }
+.grabber { width: 36px; height: 5px; border-radius: 3px; background: var(--tertiary); margin: 0 auto 16px; }
+.sheet h2 { font-size: 22px; font-weight: 700; letter-spacing: .005em; margin: 0 0 6px; text-align: center; }
+.sheet .sub { text-align: center; color: var(--secondary); font-size: 15px; margin: 0 0 18px; text-wrap: balance; }
+
+/* капсула сверху (как Dynamic Island) */
+.island { position: fixed; z-index: 10; top: calc(8px + env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%) scale(.6); width: 126px; height: 36px; border-radius: 22px;
+  background: #000; color: #fff; display: flex; align-items: center; gap: 10px; padding: 0 16px 0 12px; overflow: hidden; opacity: 0;
+  transition: width .5s var(--soft), height .5s var(--soft), transform .5s var(--soft), opacity .25s; font-size: 15px; font-weight: 500; white-space: nowrap; }
+.island.on { opacity: 1; transform: translateX(-50%) scale(1); width: min(340px, calc(100% - 32px)); height: 50px; }
+.island .dot { width: 28px; height: 28px; border-radius: 50%; background: var(--ok); display: grid; place-items: center; flex: none; }
+.island .dot svg { width: 15px; height: 15px; }
+.island span { overflow: hidden; text-overflow: ellipsis; }
+.shard { position: fixed; z-index: 11; width: 8px; height: 8px; pointer-events: none; clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); background: linear-gradient(135deg, #fff, #9fe0ff 55%, #3d7bff); }
+button:focus-visible, a:focus-visible, .pass:focus-visible { outline: 2px solid var(--kryo); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition-duration: .01ms !important; animation: none !important; } }
+body { margin: 0; }
+.mode-real .demo, .mode-pending .demo { display: none; }
+.stale { display: none; }
+.mode-real .stale.on { display: block; }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><filter id="lgf" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB" primitiveUnits="userSpaceOnUse">
+  <feImage id="lgmap" x="0" y="0" width="1" height="1" preserveAspectRatio="none" result="map"/>
+  <feDisplacementMap in="SourceGraphic" in2="map" scale="24" xChannelSelector="R" yChannelSelector="G"/></filter></svg>
+<div class="stage" id="stage"><div class="scroll" id="scroll"><div class="wrap">
+  <div class="navbar" id="navbar"><span class="small" id="smalltitle">Пропуск</span></div>
+
+  <section class="screen" id="home">
+    <h1>Пропуск</h1>
+    <div class="passbox">
+      <div class="glowbox" aria-hidden="true"><i class="g2"></i><i class="g1"></i></div>
+      <canvas class="ledgl" id="ledgl" aria-hidden="true"></canvas>
+      <div class="pass" id="pass" role="button" tabindex="0" aria-label="Пропуск Kryo, нажмите, чтобы перевернуть">
+        
+        <div class="face front"><span class="rim" aria-hidden="true"></span>
+          <canvas class="ice" id="ice1" aria-hidden="true"></canvas><span class="glare"></span>
+          <div class="top"><img alt="" src="data:image/png;base64,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"><span class="brand">Kryo</span><span class="qrbadge" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 0113.7-5.6L20 8.7M20 4v4.7h-4.7M20 12a8 8 0 01-13.7 5.6L4 15.3M4 20v-4.7h4.7"/></svg></span></div>
+          <div class="tier"><div class="k" id="p-kind">Тариф</div><div class="v" id="p-tier">Пробный</div></div>
+          <div class="fields">
+            <div><div class="k" id="p-untilk">Действует до</div><div class="v" id="p-until">26 октября</div></div>
+            <div><div class="k">Профили</div><div class="v">5</div></div>
+          </div>
+        </div>
+        <div class="face back"><span class="rim" aria-hidden="true"></span>
+          <canvas class="ice" id="ice2" aria-hidden="true"></canvas><span class="glare"></span>
+          <div class="pnobig" id="pnobig">000021</div>
+          <div style="position:relative;min-width:0"><div class="k">Номер пропуска</div><div class="v">Назовите его в поддержке</div><p>Второе устройство: откройте бота на нём и нажмите «Подключение».</p></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="cell"><span class="ico" style="background:var(--i-cyan)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5c3 3.6 5.5 6.6 5.5 9.8a5.5 5.5 0 01-11 0c0-3.2 2.5-6.2 5.5-9.8z"/></svg></span><span class="t">Трафик</span>
+        <span class="val" id="c-left">Без ограничений</span><svg class="ring" id="ring" viewBox="0 0 36 36" aria-hidden="true"><circle class="bg" cx="18" cy="18" r="14"/><circle class="fg" id="ringfg" cx="18" cy="18" r="14" pathLength="100" stroke-dasharray="100 100"/></svg></div>
+      <div class="cell"><span class="ico" style="background:var(--i-blue)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="3" width="10" height="18" rx="2.5"/><path d="M11 18h2"/></svg></span><span class="t">Устройства</span><span class="val" id="c-dev">1 из 5</span></div>
+    </div>
+    <div class="gfoot stale" id="stale"></div>
+    <div class="gfoot" id="h-note">Первые 3 дня без ограничений. Потом пропуск станет бесплатным: 10 ГБ в месяц на одном устройстве.</div>
+    <div class="actions"><button class="btn" id="home-cta">Добавить в Happ</button></div>
+
+    <div class="ghead">Помощь</div>
+    <div class="group">
+      <button class="cell faq" aria-expanded="false" aria-controls="a1"><span class="ico" style="background:var(--i-red)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4l9 16H3z"/><path d="M12 10v4M12 17v.2"/></svg></span><span class="t">Не подключается</span><svg class="chev" width="8" height="14" viewBox="0 0 8 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1.5 1.5L6.5 7l-5 5.5"/></svg></button>
+      <div class="ans" id="a1"><div><p>Переключите профиль в Happ. Начните с #4 или #5: у них другой протокол, и они часто проходят там, где #1–#3 не идут.</p></div></div>
+      <button class="cell faq" aria-expanded="false" aria-controls="a2"><span class="ico" style="background:var(--i-indigo)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5.5" y="10.5" width="13" height="9.5" rx="2"/><path d="M8.5 10.5V8a3.5 3.5 0 017 0v2.5"/></svg></span><span class="t">После блокировки экрана</span><svg class="chev" width="8" height="14" viewBox="0 0 8 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1.5 1.5L6.5 7l-5 5.5"/></svg></button>
+      <div class="ans" id="a2"><div><p>Happ переподключается сам за долю секунды. Если страница не открылась, выключите и включите VPN.</p></div></div>
+      <button class="cell faq" aria-expanded="false" aria-controls="a3"><span class="ico" style="background:var(--i-green)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 9.5L12 4.5l8.5 5"/><path d="M5.5 10v7.5M9.8 10v7.5M14.2 10v7.5M18.5 10v7.5M3.5 19.5h17"/></svg></span><span class="t">Российские сайты и банки</span><svg class="chev" width="8" height="14" viewBox="0 0 8 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1.5 1.5L6.5 7l-5 5.5"/></svg></button>
+      <div class="ans" id="a3"><div><p>Открываются напрямую, мимо VPN. Если какой-то сервис не работает, напишите нам — добавим его в список.</p></div></div>
+      <button class="cell" id="support"><span class="ico" style="background:var(--i-blue)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 6.5A2.5 2.5 0 017.5 4h9A2.5 2.5 0 0119 6.5v7a2.5 2.5 0 01-2.5 2.5H11l-4 3.5V16h0A2 2 0 015 14z"/></svg></span><span class="t">Написать в поддержку</span><svg class="chev" width="8" height="14" viewBox="0 0 8 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1.5 1.5L6.5 7l-5 5.5"/></svg></button>
+    </div>
+
+    <div class="demo">
+      <div class="gfoot">Демо: как пропуск выглядит у разных клиентов</div>
+      <div class="seg" role="group" aria-label="Демо-состояние клиента"><span class="thumb" id="thumb"></span>
+        <button id="st-trial" data-state="trial" aria-pressed="true">Пробный</button>
+        <button id="st-free" data-state="free" aria-pressed="false">Бесплатный</button>
+        <button id="st-paid" data-state="paid" aria-pressed="false">Подписка</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="screen" id="connect" hidden>
+    <h1>Подключение</h1>
+    <div class="group">
+      <div class="cell"><span class="ico" style="background:var(--i-blue)">1</span><span class="t">Установите Happ<small>Бесплатное приложение</small><span class="stores"><a class="chip" href="https://apps.apple.com/us/app/happ-proxy-utility/id6504287215" target="_blank" rel="noopener">App Store</a><a class="chip" href="https://play.google.com/store/apps/details?id=com.happproxy" target="_blank" rel="noopener">Android</a></span></span></div>
+      <div class="cell"><span class="ico" style="background:var(--i-cyan)">2</span><span class="t">Добавьте пропуск<small>Кнопка ниже откроет Happ</small></span></div>
+      <div class="cell"><span class="ico" style="background:var(--i-teal)">3</span><span class="t">Включите VPN<small>Профиль #1 выбран сразу</small></span></div>
+    </div>
+    <div class="actions"><button class="btn add">Добавить в Happ</button></div>
+    <div class="ghead">Профили в Happ</div>
+    <div class="group">
+      <div class="cell"><span class="ico" style="background:var(--i-blue)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3L5.5 13.5H12L11 21l7.5-10.5H12z"/></svg></span><span class="t">#1 Основной<small>Начните с него</small></span></div>
+      <div class="cell"><span class="ico" style="background:var(--i-blue)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3L5.5 13.5H12L11 21l7.5-10.5H12z"/></svg></span><span class="t">#2 Запасной<small>Тот же способ, другой порт</small></span></div>
+      <div class="cell"><span class="ico" style="background:var(--i-blue)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3L5.5 13.5H12L11 21l7.5-10.5H12z"/></svg></span><span class="t">#3 Запасной<small>Тот же способ, другой порт</small></span></div>
+      <div class="cell"><span class="ico" style="background:var(--i-indigo)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4l8.5 4.5L12 13 3.5 8.5z"/><path d="M3.5 12.5L12 17l8.5-4.5"/><path d="M3.5 16.2L12 20.7l8.5-4.5" opacity=".6"/></svg></span><span class="t">#4 Другой способ<small>Если #1–#3 не работают</small></span></div>
+      <div class="cell"><span class="ico" style="background:var(--i-indigo)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4l8.5 4.5L12 13 3.5 8.5z"/><path d="M3.5 12.5L12 17l8.5-4.5"/><path d="M3.5 16.2L12 20.7l8.5-4.5" opacity=".6"/></svg></span><span class="t">#5 Другой способ<small>Запас к #4</small></span></div>
+    </div>
+    <div class="gfoot">Профили переключаются в Happ одним нажатием. Если у вашего оператора не идёт #1, выберите #4.</div>
+  </section>
+
+  <section class="screen" id="plans" hidden>
+    <h1>Тарифы</h1>
+    <div class="planlist">
+      <button class="cell plan" data-plan="1" aria-pressed="false"><span class="t">1 месяц<small>99 ₽ в месяц</small></span><span class="price">99 ₽</span><span class="radio"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span></button>
+      <button class="cell plan" data-plan="3" aria-pressed="true"><span class="t">3 месяца<span class="pill">−20%</span><small>около 80 ₽ в месяц</small></span><span class="price">239 ₽</span><span class="radio"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span></button>
+    </div>
+    <div class="ghead">Что входит</div>
+    <div class="group">
+      <div class="cell"><span class="ico" style="background:var(--i-cyan)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5c3 3.6 5.5 6.6 5.5 9.8a5.5 5.5 0 01-11 0c0-3.2 2.5-6.2 5.5-9.8z"/></svg></span><span class="t">Трафик</span><span class="val">Без ограничений</span></div>
+      <div class="cell"><span class="ico" style="background:var(--i-blue)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="3" width="10" height="18" rx="2.5"/><path d="M11 18h2"/></svg></span><span class="t">Устройства</span><span class="val">До 5</span></div>
+      <div class="cell"><span class="ico" style="background:var(--i-indigo)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4l8.5 4.5L12 13 3.5 8.5z"/><path d="M3.5 12.5L12 17l8.5-4.5"/><path d="M3.5 16.2L12 20.7l8.5-4.5" opacity=".6"/></svg></span><span class="t">Профили</span><span class="val">Все 5</span></div>
+    </div>
+    <div class="gfoot">Оплата российской картой через ЮKassa. Оставшиеся дни не сгорают: новые прибавляются к сроку.</div>
+    <div class="actions"><button class="btn" id="pay">Оплатить 239 ₽</button></div>
+  </section>
+
+  <section class="screen" id="friends" hidden>
+    <h1>Друзья</h1>
+    <div class="group">
+      <div class="cell"><span class="ico" style="background:var(--i-cyan)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="9" width="16" height="11" rx="1.5"/><path d="M3 9h18M12 9v11M12 9c-1.5-3.5-5.5-4-5.5-1.5S10 9 12 9zm0 0c1.5-3.5 5.5-4 5.5-1.5S14 9 12 9z"/></svg></span><span class="t">Друг взял пробный<small>Вам +5 ГБ, до 10 раз в месяц</small></span><span class="val">+5 ГБ</span></div>
+      <div class="cell"><span class="ico" style="background:var(--i-green)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="9" width="16" height="11" rx="1.5"/><path d="M3 9h18M12 9v11M12 9c-1.5-3.5-5.5-4-5.5-1.5S10 9 12 9zm0 0c1.5-3.5 5.5-4 5.5-1.5S14 9 12 9z"/></svg></span><span class="t">Друг оплатил<small>Вам +7 дней подписки</small></span><span class="val">+7 дней</span></div>
+    </div>
+    <div class="ghead">Ваша ссылка</div>
+    <div class="group plain">
+      <div class="cell"><span class="t" id="reflink" style="font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">t.me/…?start=ref_000021</span></div>
+      <button class="cell" id="copy"><span class="t link" id="copylab">Скопировать ссылку</span></button>
+    </div>
+    <div class="actions"><button class="btn" id="share">Пригласить друга</button></div>
+    <div class="ghead">В этом месяце</div>
+    <div class="group plain">
+      <div class="cell"><span class="t">Приглашено</span><span class="val">2</span></div>
+      <div class="cell"><span class="t">Бонусы за пробный</span><span class="val">2 из 10</span><span class="bar"><i style="width:20%"></i></span></div>
+    </div>
+  </section>
+</div></div></div>
+
+<nav class="tabbar" id="tabbar" aria-label="Разделы"><span class="bubble" id="bubble"><span class="lensrow" id="lensrow" aria-hidden="true"></span></span>
+  <button id="t-home" data-tab="home" data-title="Пропуск" aria-current="page"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M3.5 7A2.75 2.75 0 016.25 4.25h11.5A2.75 2.75 0 0120.5 7v2.1a2.4 2.4 0 000 4.8V17a2.75 2.75 0 01-2.75 2.75H6.25A2.75 2.75 0 013.5 17v-3.1a2.4 2.4 0 000-4.8zM8.4 9.1h7.2v1.7H8.4zm0 4.1h4.8v1.7H8.4z"/></svg>Пропуск</button>
+  <button id="t-connect" data-tab="connect" data-title="Подключение"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M12 2.5l7.8 3.2v5.7c0 4.9-3.3 8.6-7.8 10.1-4.5-1.5-7.8-5.2-7.8-10.1V5.7zm3.9 6.6l-5.2 5.2-2.6-2.6-1.2 1.2 3.8 3.8 6.4-6.4z"/></svg>Подключение</button>
+  <button id="t-plans" data-tab="plans" data-title="Тарифы"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.8l2.85 5.85 6.4.9-4.65 4.5 1.1 6.35L12 17.4l-5.7 3 1.1-6.35-4.65-4.5 6.4-.9z"/></svg>Тарифы</button>
+  <button id="t-friends" data-tab="friends" data-title="Друзья"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="9" cy="7.9" r="3.7"/><path d="M2.3 19.3c0-3.8 3-6.3 6.7-6.3s6.7 2.5 6.7 6.3c0 .6-.4 1-1 1H3.3c-.6 0-1-.4-1-1z"/><circle cx="17" cy="8.6" r="2.9"/><path d="M16.6 13.5c3.1 0 5.3 2.1 5.3 5.4 0 .5-.4.9-.9.9h-3.6c.1-2.5-.7-4.6-2.4-5.9.5-.2 1-.4 1.6-.4z"/></svg>Друзья</button>
+</nav>
+
+<div class="scrim" id="scrim"></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sh-t">
+  <div class="grabber" id="grabber"></div>
+  <h2 id="sh-t">Добавить в Happ</h2>
+  <p class="sub">Пропуск появится в Happ сразу со всеми пятью профилями</p>
+  <div class="group">
+    <div class="cell"><span class="ico" style="background:var(--i-blue)">1</span><span class="t">Откроется Happ</span></div>
+    <div class="cell"><span class="ico" style="background:var(--i-cyan)">2</span><span class="t">Нажмите «Добавить подписку»</span></div>
+    <div class="cell"><span class="ico" style="background:var(--i-teal)">3</span><span class="t">Включите VPN</span></div>
+  </div>
+  <div class="actions"><button class="btn" id="sh-go">Открыть Happ</button><button class="btn tinted" id="sh-cancel">Отмена</button></div>
+</div>
+<div class="island" id="island" role="status"><span class="dot" id="island-dot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span><span id="island-t">Пропуск добавлен</span></div>
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var STATES = {
+    trial: { kind: "Тариф", tier: "Пробный", untilK: "Действует до", until: "26 октября", dev: "1 из 5", traffic: "∞", used: -1, left: "Без ограничений", term: "Ещё 3 дня",
+      note: "Первые 3 дня без ограничений. Потом пропуск станет бесплатным: 10 ГБ в месяц на одном устройстве.", cta: "Добавить в Happ" },
+    free: { kind: "Тариф", tier: "Бесплатный", untilK: "Лимит обновится", until: "1 ноября", dev: "1 из 1", traffic: "3,2 ГБ", used: 3.2, left: "3,2 из 10 ГБ", term: "Обновится 1 ноя",
+      note: "Нужен безлимит или второе устройство — подписка от 99 ₽ в месяц.", cta: "Снять лимит за 99 ₽" },
+    paid: { kind: "Подписка", tier: "3 месяца", untilK: "Действует до", until: "21 января", dev: "2 из 5", traffic: "∞", used: -1, left: "Без ограничений", term: "До 21 января",
+      note: "Продлить можно заранее: новые дни прибавятся к сроку.", cta: "Добавить в Happ" }
+  };
+  var ORDER = ["trial", "free", "paid"], TABS = ["home", "connect", "plans", "friends"], plan = "3", state = "trial";
+  var calm = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  // ── рабочий режим: Telegram и подписанные данные клиента ──
+  var PUBKEY = null;   // открытый ключ подписи бота (JWK P-256); закрытый — только на боевом
+  var TG = (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initData !== undefined) ? window.Telegram.WebApp : null;
+  var REAL = null;           // проверенные данные клиента; null — демо
+  // вне Telegram в чужой рамке данных не показываем
+  var framed = false; try { framed = window.top !== window.self; } catch (e) { framed = true; }
+  if (framed) { var ao = location.ancestorOrigins; if (ao && ao.length && ao[0] !== "https://web.telegram.org") TG = null; }
+  function themeSync() {
+    if (!TG) return;
+    var dark = TG.colorScheme === "dark"; document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+    var bg = dark ? "#000000" : "#f2f2f7";
+    try { TG.setHeaderColor(bg); TG.setBackgroundColor(bg); if (TG.setBottomBarColor) TG.setBottomBarColor(bg); } catch (e) {}
+  }
+  if (TG) {
+    try { TG.ready(); TG.expand(); if (TG.disableVerticalSwipes) TG.disableVerticalSwipes(); } catch (e) {}
+    themeSync(); TG.onEvent("themeChanged", themeSync);
+  }
+  function bot(param) {
+    if (!REAL) return false;
+    var url = "https://t.me/" + REAL.b + (param ? "?start=" + param : "");
+    if (TG && TG.openTelegramLink) TG.openTelegramLink(url); else location.href = url;
+    return true;
+  }
+  function b64u(str) { str = str.replace(/-/g, "+").replace(/_/g, "/"); while (str.length % 4) str += "="; var bin = atob(str), a = new Uint8Array(bin.length); for (var i = 0; i < bin.length; i++) a[i] = bin.charCodeAt(i); return a; }
+  // start_param = base64url(JSON) + base64url(подпись r||s, 64 байта = 86 символов)
+  function verify(sp) {
+    if (!PUBKEY || !sp || sp.length < 100 || !/^[A-Za-z0-9_-]+$/.test(sp) || !(window.crypto && crypto.subtle)) return Promise.resolve(null);
+    var body = sp.slice(0, -86), sig = b64u(sp.slice(-86)), data = new TextEncoder().encode(body);
+    return crypto.subtle.importKey("jwk", PUBKEY, { name: "ECDSA", namedCurve: "P-256" }, false, ["verify"])
+      .then(function (k) { return crypto.subtle.verify({ name: "ECDSA", hash: "SHA-256" }, k, sig, data); })
+      .then(function (ok) {
+        if (!ok) return null;
+        var p = JSON.parse(new TextDecoder().decode(b64u(body)));
+        if (p.v !== 1 || !/^[A-Za-z0-9_]{5,32}$/.test(p.b) || ["trial", "free", "paid"].indexOf(p.t) < 0) return null;
+        return p;
+      }).catch(function () { return null; });
+  }
+  var MON = ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"];
+  function day(iso) { var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || ""); return m ? (+m[3]) + " " + MON[+m[2] - 1] : "—"; }
+  function realState(p) {
+    var used = p.g ? p.g[0] / 10 : 0, lim = p.g ? p.g[1] : 0, dv = p.d || [1, 1];
+    var gb = function (x) { return x.toFixed(1).replace(".", ","); };
+    var plan = p.pl === 3 ? "3 месяца" : p.pl === 1 ? "1 месяц" : "Подписка";
+    if (p.t === "free") return { kind: "Тариф", tier: "Бесплатный", untilK: "Лимит обновится", until: day(p.u), dev: dv[0] + " из " + dv[1], used: used,
+      left: gb(used) + " из " + lim + " ГБ", note: "Нужен безлимит или второе устройство — подписка от 99 ₽ в месяц.", cta: "Снять лимит за 99 ₽" };
+    if (p.t === "trial") return { kind: "Тариф", tier: "Пробный", untilK: "Действует до", until: day(p.u), dev: dv[0] + " из " + dv[1], used: -1,
+      left: "Без ограничений", note: "Первые 3 дня без ограничений. Потом пропуск станет бесплатным: 10 ГБ в месяц на одном устройстве.", cta: "Добавить в Happ" };
+    return { kind: "Подписка", tier: plan, untilK: "Действует до", until: day(p.u), dev: dv[0] + " из " + dv[1], used: -1,
+      left: "Без ограничений", note: "Продлить можно заранее: новые дни прибавятся к сроку.", cta: "Добавить в Happ" };
+  }
+  function applyReal(p) {
+    REAL = p; document.documentElement.classList.remove("mode-pending"); document.documentElement.classList.add("mode-real");
+    STATES.real = realState(p); state = ""; setState("real");
+    var no = ("000000" + (p.n | 0)).slice(-6); $("pnobig").textContent = no;
+    if (p.r && /^[A-Za-z0-9_]{1,40}$/.test(p.r)) $("reflink").textContent = "t.me/" + p.b + "?start=" + p.r;
+    var age = Date.now() / 1000 - (p.ts || 0);
+    if (age > 3 * 86400) { var st = $("stale"); st.textContent = "Данные на " + day(new Date(p.ts * 1000).toISOString().slice(0, 10)) + ". Откройте пропуск из бота заново, чтобы обновить."; st.classList.add("on"); }
+  }
+
+  function haptic(kind) {
+    try { var h = window.Telegram.WebApp.HapticFeedback; if (kind === "ok") h.notificationOccurred("success"); else if (kind === "sel") h.selectionChanged(); else h.impactOccurred(kind || "light"); return; } catch (e) {}
+    try { navigator.vibrate && navigator.vibrate(kind === "ok" ? [10, 40, 14] : 6); } catch (e) {}
+  }
+  function pop(el) { if (!calm && el && el.animate) el.animate([{ transform: "scale(1)" }, { transform: "scale(.84)" }, { transform: "scale(1.08)" }, { transform: "scale(1)" }], { duration: 380, easing: "ease-out" }); }
+  function countUp(el, to, suffix) {
+    if (calm) { el.textContent = to.toFixed(1).replace(".", ",") + suffix; return; }
+    var t0 = performance.now();
+    (function step(t) { var k = Math.min(1, (t - t0) / 800); k = 1 - Math.pow(1 - k, 3);
+      el.textContent = (to * k).toFixed(1).replace(".", ",") + suffix; if (k < 1) requestAnimationFrame(step); })(t0);
+  }
+  function burst(x, y, n) {
+    if (calm || !document.body.animate) return;
+    for (var i = 0; i < n; i++) {
+      var s = document.createElement("i"); s.className = "shard"; s.style.left = x + "px"; s.style.top = y + "px"; document.body.appendChild(s);
+      var a = Math.random() * Math.PI * 2, d = 50 + Math.random() * 100, sz = .6 + Math.random();
+      s.animate([{ transform: "translate(-50%,-50%) scale(" + sz + ")", opacity: 1 },
+                 { transform: "translate(calc(-50% + " + Math.cos(a) * d + "px), calc(-50% + " + (Math.sin(a) * d + 60) + "px)) scale(" + sz * .4 + ") rotate(" + (Math.random() * 400 - 200) + "deg)", opacity: 0 }],
+                { duration: 900 + Math.random() * 400, easing: "cubic-bezier(.2,.7,.3,1)" }).onfinish = (function (el) { return function () { el.remove(); }; })(s);
+    }
+  }
+
+  // ледяная фактура пропуска: грани кристалла, нарисованные один раз под размер карты
+  function ice(canvas, seed) {
+    var r = canvas.getBoundingClientRect(), dpr = Math.min(3, devicePixelRatio || 1), w = r.width, h = r.height;
+    if (!w) return;
+    canvas.width = w * dpr; canvas.height = h * dpr;
+    var c = canvas.getContext("2d"); c.scale(dpr, dpr);
+    function rnd() { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; }
+    var cols = 6, rows = 4, pts = [];
+    for (var y = 0; y <= rows; y++) for (var x = 0; x <= cols; x++)
+      pts.push([x * w / cols + (x % cols ? (rnd() - .5) * w / cols * .8 : 0), y * h / rows + (y % rows ? (rnd() - .5) * h / rows * .8 : 0)]);
+    for (var j = 0; j < rows; j++) for (var i = 0; i < cols; i++) {
+      var a = pts[j * (cols + 1) + i], b = pts[j * (cols + 1) + i + 1], cc = pts[(j + 1) * (cols + 1) + i], d = pts[(j + 1) * (cols + 1) + i + 1];
+      [[a, b, d], [a, d, cc]].forEach(function (t) {
+        var g = c.createLinearGradient(t[0][0], t[0][1], t[2][0], t[2][1]), o = rnd() * .14;
+        g.addColorStop(0, "rgba(255,255,255," + (o + .03).toFixed(3) + ")"); g.addColorStop(1, "rgba(255,255,255," + (o * .2).toFixed(3) + ")");
+        c.beginPath(); c.moveTo(t[0][0], t[0][1]); c.lineTo(t[1][0], t[1][1]); c.lineTo(t[2][0], t[2][1]); c.closePath();
+        c.fillStyle = g; c.fill(); c.strokeStyle = "rgba(255,255,255,.07)"; c.lineWidth = .6; c.stroke();
+      });
+    }
+    // крупная грань-блик по диагонали
+    var gl = c.createLinearGradient(0, 0, w, h); gl.addColorStop(0, "rgba(255,255,255,.16)"); gl.addColorStop(.5, "rgba(255,255,255,0)");
+    c.beginPath(); c.moveTo(0, 0); c.lineTo(w * .62, 0); c.lineTo(0, h * .72); c.closePath(); c.fillStyle = gl; c.fill();
+  }
+  function drawIce() { ice($("ice1"), 21); ice($("ice2"), 7); }
+  drawIce(); addEventListener("resize", drawIce);
+
+  // светодиодная подсветка пропуска: две ленты на противоположных сторонах, считаются шейдером на каждый пиксель
+  (function leds() {
+    var cv = $("ledgl"), gl = null, M = 40, R = 20, LAP = 9000;
+    try { gl = cv.getContext("webgl", { premultipliedAlpha: true, alpha: true, antialias: false }); } catch (e) {}
+    if (!gl) { cv.remove(); return; }
+    var VS = "attribute vec2 a;varying vec2 v;void main(){v=vec2(a.x*.5+.5,.5-a.y*.5);gl_Position=vec4(a,0.,1.);}";
+    var FS = [
+      "precision highp float;varying vec2 v;uniform vec2 res,hb;uniform float dpr,R,head,dark;uniform sampler2D ice;",
+      "const float PI=3.14159265;",
+      // расстояние до скруглённого прямоугольника (снаружи > 0) и положение ближайшей точки вдоль контура по часовой стрелке
+      "float sdr(vec2 p){vec2 q=abs(p)-hb+R;return length(max(q,0.))+min(max(q.x,q.y),0.)-R;}",
+      "float along(vec2 p){float sw=2.*(hb.x-R),sh=2.*(hb.y-R),q=PI*R*.5;vec2 c=hb-R;vec2 d=abs(p)-c;",
+      " if(d.x>0.&&d.y>0.){",
+      "  if(p.x>0.&&p.y<0.){float a=atan(p.y+c.y,p.x-c.x);return sw+(a+PI*.5)*R;}",
+      "  if(p.x>0.&&p.y>0.){float a=atan(p.y-c.y,p.x-c.x);return sw+q+sh+a*R;}",
+      "  if(p.x<0.&&p.y>0.){float a=atan(p.y-c.y,p.x+c.x);return 2.*sw+2.*q+sh+(a-PI*.5)*R;}",
+      "  float a=atan(p.y+c.y,p.x+c.x)+2.*PI;return 2.*sw+3.*q+2.*sh+(a-PI)*R;}",
+      " if(d.x>d.y){ if(p.x>0.)return sw+q+(p.y+c.y); return 2.*sw+3.*q+sh+(c.y-p.y);}",
+      " if(p.y<0.)return p.x+c.x; return sw+2.*q+sh+(c.x-p.x);}",
+      // яркость ленты вдоль контура: ровная середина, длинные плавные концы
+      "float seg(float u,float hd,float P,float L){float t=mod(hd-u,P);float f=L*.38;",
+      " float a=smoothstep(0.,f,t)*(1.-smoothstep(L-f,L,t));return a*a*(3.-2.*a);}",
+      "void main(){vec2 p=(v*res)/dpr-res/dpr*.5;float P=4.*(hb.x+hb.y-2.*R)+2.*PI*R;float L=P*.26;",
+      " float d=sdr(p);float u=along(p);float k=max(seg(u,head,P,L),seg(u,head+P*.5,P,L));",
+      " float x=d+1.;",                                                 // центр линии — в 1 px внутри кромки
+      " float core=1.-smoothstep(.55,1.35,abs(x));",                    // пересвеченная нить ~2px с ровной вершиной
+      " float bloom=exp(-abs(x)/2.2)*.85+exp(-abs(x)/7.)*.32+exp(-abs(x)/18.)*.12;", // засветка у линии и мягкий спад
+      " float wash=d<0.?exp(d/16.)*.32:0.;",                            // свет на поверхности карты вдоль ленты
+      " float I=k*(core+bloom*(1.-core)+wash);",
+      // грани льда на карте рядом с лентой ловят свет — свет и материал карты становятся одним целым
+      " float fac=0.;if(d<0.){vec2 iu=clamp((p+hb)/(2.*hb),0.,1.);fac=texture2D(ice,iu).a;}",
+      " float catchL=k*fac*exp(d/44.)*5.;",
+      // снаружи — свет ленты, отражённый в цвет карты: идёт вместе с лентами, а не стоит кольцом
+      " float spill=d>0.?k*(exp(-d/14.)*.38+exp(-d/34.)*.2):0.;",
+      " vec3 col=mix(vec3(.80,.88,1.),vec3(1.),clamp(core+.35,0.,1.));",  // ореол чуть холоднее сердцевины
+      " if(dark<.5&&d>0.)col=mix(vec3(.45,.62,1.),col,core);",           // на светлом фоне снаружи — голубой свет, белый не виден
+      " vec3 spillC=dark>.5?vec3(.42,.6,1.):vec3(.25,.45,1.);",
+      " vec3 rgb=col*I+vec3(.85,.93,1.)*catchL+spillC*spill;float A=clamp(max(max(I,catchL*.9),spill),0.,1.);",
+      " gl_FragColor=vec4(min(rgb,vec3(A)),A);}"].join("\n");
+    function sh(t, s) { var o = gl.createShader(t); gl.shaderSource(o, s); gl.compileShader(o); if (!gl.getShaderParameter(o, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(o)); return o; }
+    var pr = gl.createProgram();
+    try { gl.attachShader(pr, sh(gl.VERTEX_SHADER, VS)); gl.attachShader(pr, sh(gl.FRAGMENT_SHADER, FS)); gl.linkProgram(pr); if (!gl.getProgramParameter(pr, gl.LINK_STATUS)) throw new Error("link"); }
+    catch (er) { cv.remove(); return; }
+    gl.useProgram(pr);
+    var bf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, bf); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+    var al = gl.getAttribLocation(pr, "a"); gl.enableVertexAttribArray(al); gl.vertexAttribPointer(al, 2, gl.FLOAT, false, 0, 0);
+    var U = {}; ["res", "hb", "dpr", "R", "head", "dark", "ice"].forEach(function (n) { U[n] = gl.getUniformLocation(pr, n); });
+    var w = 0, h = 0, dpr = 1, darkQ = matchMedia("(prefers-color-scheme: dark)"), side = "", tex = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    [[gl.TEXTURE_MIN_FILTER, gl.LINEAR], [gl.TEXTURE_MAG_FILTER, gl.LINEAR], [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE]].forEach(function (q) { gl.texParameteri(gl.TEXTURE_2D, q[0], q[1]); });
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([0, 0, 0, 0]));
+    function syncIce() {
+      var want = $("pass").classList.contains("flip") ? "ice2" : "ice1";
+      if (want === side) return; var c = $(want); if (!c.width) return;
+      gl.bindTexture(gl.TEXTURE_2D, tex); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, c); side = want;
+    }
+    function size() {
+      var pz = $("pass"); w = pz.offsetWidth; h = pz.offsetHeight; dpr = Math.min(3, devicePixelRatio || 1);
+      cv.width = Math.round((w + 2 * M) * dpr); cv.height = Math.round((h + 2 * M) * dpr); gl.viewport(0, 0, cv.width, cv.height);
+    }
+    function isDark() { var t = document.documentElement.dataset.theme; return t ? t === "dark" : darkQ.matches; }
+    function draw(now) {
+      if (!w) size();
+      var P = 4 * (w / 2 + h / 2 - 2 * R) + 2 * Math.PI * R, hd = calm ? P * .3 : (now % LAP) / LAP * P;
+      gl.uniform2f(U.res, cv.width, cv.height); gl.uniform2f(U.hb, w / 2, h / 2); gl.uniform1f(U.dpr, dpr); gl.uniform1f(U.R, R);
+      gl.uniform1f(U.head, hd); gl.uniform1f(U.dark, isDark() ? 1 : 0); syncIce(); gl.uniform1i(U.ice, 0);
+      gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT); gl.drawArrays(gl.TRIANGLES, 0, 3);
+    }
+    var seen = true;
+    if (window.IntersectionObserver) new IntersectionObserver(function (es) { seen = es[0].isIntersecting; }).observe(document.querySelector(".passbox"));
+    // при «уменьшении движения» ленты стоят, но перерисовываются раз в полсекунды (смена темы, размера, возврат на экран)
+    var lost = false;
+    cv.addEventListener("webglcontextlost", function (e) { e.preventDefault(); lost = true; cv.style.opacity = "0"; });
+    function loop(now) {
+      if (!lost && !document.hidden && seen && !$("home").hidden && !document.body.classList.contains("sheet-open")) draw(now);
+      if (calm) setTimeout(function () { requestAnimationFrame(loop); }, 500); else requestAnimationFrame(loop);
+    }
+    addEventListener("resize", function () { w = 0; side = ""; });
+    requestAnimationFrame(loop);
+  })();
+
+
+  // преломление края панели вкладок (только Chromium: Android, Telegram на компьютере)
+  var tb = $("tabbar"), canRefract = /Chrome|Chromium/.test(navigator.userAgent) && !/iPhone|iPad|iPod/.test(navigator.userAgent);
+  function lensMap(w, h, r, edge) {
+    var cv = document.createElement("canvas"); cv.width = w; cv.height = h;
+    var ctx = cv.getContext("2d"), img = ctx.createImageData(w, h), d = img.data;
+    function sdf(x, y) { var px = Math.abs(x - w / 2) - (w / 2 - r), py = Math.abs(y - h / 2) - (h / 2 - r);
+      return Math.min(Math.max(px, py), 0) + Math.hypot(Math.max(px, 0), Math.max(py, 0)) - r; }
+    for (var y = 0; y < h; y++) for (var x = 0; x < w; x++) {
+      var s = -sdf(x + .5, y + .5), dx = 0, dy = 0;
+      if (s > 0 && s < edge) {
+        var gx = sdf(x + 1.5, y + .5) - sdf(x - .5, y + .5), gy = sdf(x + .5, y + 1.5) - sdf(x + .5, y - .5), l = Math.hypot(gx, gy) || 1, k = Math.pow(1 - s / edge, 2);
+        dx = gx / l * k; dy = gy / l * k;
+      }
+      var i = (y * w + x) * 4; d[i] = 128 + dx * 127; d[i + 1] = 128 + dy * 127; d[i + 2] = 128; d[i + 3] = 255;
+    }
+    ctx.putImageData(img, 0, 0); return cv.toDataURL();
+  }
+  function setupRefraction() {
+    if (!canRefract) return;
+    var w = Math.round(tb.offsetWidth), h = Math.round(tb.offsetHeight), m = $("lgmap");
+    if (!w || !h) return;
+    m.setAttribute("width", w); m.setAttribute("height", h); m.setAttribute("href", lensMap(w, h, h / 2, 16));
+    document.documentElement.classList.add("refract");
+  }
+  setupRefraction(); addEventListener("resize", setupRefraction);
+
+  // наклон пропуска: палец или мышь, на телефоне — гироскоп (на iOS после первого нажатия)
+  var pass = $("pass");
+  function tilt(x, y) {
+    x = Math.max(-1, Math.min(1, x)); y = Math.max(-1, Math.min(1, y));
+    var bx = pass.parentNode;
+    bx.style.setProperty("--ry", (x * 8).toFixed(2) + "deg"); bx.style.setProperty("--rx", (-y * 6).toFixed(2) + "deg");
+    bx.style.setProperty("--gx", (50 + x * 45).toFixed(1) + "%"); bx.style.setProperty("--gy", (35 + y * 45).toFixed(1) + "%");
+  }
+  function untilt() { pass.parentNode.classList.remove("tilting"); tilt(0, -.5); }
+  untilt();
+  pass.addEventListener("pointermove", function (e) {
+    var r = pass.getBoundingClientRect(); pass.parentNode.classList.add("tilting");
+    tilt((e.clientX - r.left) / r.width * 2 - 1, (e.clientY - r.top) / r.height * 2 - 1);
+  });
+  pass.addEventListener("pointerleave", untilt); pass.addEventListener("pointercancel", untilt);
+  pass.addEventListener("pointerdown", function () { pass.parentNode.style.setProperty("--press", ".975"); });
+  addEventListener("pointerup", function () { pass.parentNode.style.setProperty("--press", "1"); });
+  var gyro = false;
+  function onOrient(e) { if (e.gamma == null) return; gyro = true; pass.parentNode.classList.add("tilting"); tilt(e.gamma / 30, (e.beta - 50) / 30); }
+  function askGyro() {
+    var D = window.DeviceOrientationEvent;
+    if (gyro || !D || typeof D.requestPermission !== "function") return;
+    D.requestPermission().then(function (p) { if (p === "granted") addEventListener("deviceorientation", onOrient); }).catch(function () {});
+  }
+  if (window.DeviceOrientationEvent && typeof DeviceOrientationEvent.requestPermission !== "function") addEventListener("deviceorientation", onOrient);
+  var flipT; function flip() { askGyro(); pass.parentNode.classList.remove("tilting"); pass.classList.toggle("flip"); haptic("medium");
+    var bx = pass.parentNode; bx.classList.add("flipping"); clearTimeout(flipT); flipT = setTimeout(function () { bx.classList.remove("flipping"); }, 650); }
+  pass.addEventListener("click", flip);
+  pass.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); flip(); } });
+
+  // панель вкладок: линза под пальцем, можно вести между разделами
+  var bubble = $("bubble"), lensrow = $("lensrow"), tabW = 0, tabIdx = 0;
+  lensrow.innerHTML = Array.prototype.map.call(tb.querySelectorAll("button"), function (b) {
+    return '<span class="li">' + b.querySelector("svg").outerHTML + b.textContent.trim() + "</span>";
+  }).join("");
+  function place(x) { bubble.style.transform = "translateX(" + x + "px)"; lensrow.style.transform = "translateX(" + -x + "px)"; lensrow.style.transformOrigin = (tabW / 2) + "px 50%"; }
+  function measure() { var w = tb.clientWidth - 10; tabW = w / 4; lensrow.style.width = w + "px"; place(tabIdx * tabW); }
+  measure(); addEventListener("resize", measure);
+  // ── настоящая линза на WebGL (работает и в Safari): панель рисуется в картинку, шейдер преломляет её ──
+  // в центре — увеличение, у кромки — изгиб и растяжение, по краю — разложение цвета, на ребре — блик; снаружи — мягкая тень.
+  var GL = (function () {
+    var cv = document.createElement("canvas"); cv.className = "lenscv"; cv.setAttribute("aria-hidden", "true"); document.body.appendChild(cv);
+    var gl = null; try { gl = cv.getContext("webgl", { premultipliedAlpha: true, antialias: false, alpha: true }); } catch (e) {}
+    if (!gl) { cv.remove(); return null; }
+    var VS = "attribute vec2 a;varying vec2 v;void main(){v=vec2(a.x*.5+.5,.5-a.y*.5);gl_Position=vec4(a,0.,1.);}";
+    var FS = [
+      "precision highp float;varying vec2 v;uniform sampler2D t;uniform vec2 res,c,hb;uniform float mag,e,dark;",
+      "float sd(vec2 p,vec2 b){float r=min(b.x,b.y);vec2 q=abs(p)-b+r;return length(max(q,0.))+min(max(q.x,q.y),0.)-r;}",
+      "vec4 tx(vec2 p){return texture2D(t,clamp(p/res,0.,1.));}",
+      "void main(){vec2 p=v*res;vec2 d=p-c;float s=sd(d,hb);",
+      " float sh=.22*e*(1.-smoothstep(-6.,16.,sd(d-vec2(0.,6.),hb)));",
+      " float a=clamp(.5-s,0.,1.);",
+      " vec2 k=vec2(.5,0.);vec2 n=normalize(vec2(sd(d+k.xy,hb)-sd(d-k.xy,hb),sd(d+k.yx,hb)-sd(d-k.yx,hb))+1e-5);",
+      " float edge=max(8.,min(hb.x,hb.y)*.8);float w=clamp(-s/edge,0.,1.);float bend=pow(1.-w,1.8)*e;",
+      " vec2 base=c+d/mag;vec2 off=n*bend*30.;float ca=bend*4.;",
+      " vec4 m=tx(base+off);vec4 r1=tx(base+off+n*ca);vec4 b1=tx(base+off-n*ca);vec4 col=vec4(mix(m.r,r1.r,r1.a*m.a),m.g,mix(m.b,b1.b,b1.a*m.a),m.a);",
+      " vec4 wash=vec4(vec3(dark>.5?.16:1.),1.)*(dark>.5?.22:.3);col+=wash*(1.-col.a);",
+      " col.rgb=mix(col.rgb,vec3(col.a),(dark>.5?.04:.08)*e);col.rgb*=1.-(dark>.5?.18:.10)*pow(1.-w,3.)*e;",
+      " float lit=max(dot(n,normalize(vec2(-.55,-.85))),0.)*.9+max(dot(n,normalize(vec2(.6,.8))),0.)*.45;",
+      " float sp=clamp(pow(1.-w,6.)*lit*(dark>.5?.6:.9)+smoothstep(1.2,0.,-s)*.55,0.,1.)*e;",
+      " col=col*(1.-sp)+vec4(vec3(dark>.5?.9:1.),1.)*sp;",
+      " gl_FragColor=col*a+vec4(0.,0.,0.,sh)*(1.-a);}"].join("\n");
+    function sh(type, src) { var o = gl.createShader(type); gl.shaderSource(o, src); gl.compileShader(o); if (!gl.getShaderParameter(o, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(o)); return o; }
+    var pr = gl.createProgram();
+    try { gl.attachShader(pr, sh(gl.VERTEX_SHADER, VS)); gl.attachShader(pr, sh(gl.FRAGMENT_SHADER, FS)); gl.linkProgram(pr); if (!gl.getProgramParameter(pr, gl.LINK_STATUS)) throw new Error("link"); }
+    catch (er) { cv.remove(); return null; }
+    gl.useProgram(pr);
+    var buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+    var al = gl.getAttribLocation(pr, "a"); gl.enableVertexAttribArray(al); gl.vertexAttribPointer(al, 2, gl.FLOAT, false, 0, 0);
+    var U = {}; ["res", "c", "hb", "mag", "e", "dark"].forEach(function (n) { U[n] = gl.getUniformLocation(pr, n); });
+    var tex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, tex); gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
+    [[gl.TEXTURE_MIN_FILTER, gl.LINEAR], [gl.TEXTURE_MAG_FILTER, gl.LINEAR], [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE]].forEach(function (q) { gl.texParameteri(gl.TEXTURE_2D, q[0], q[1]); });
+
+    var src = document.createElement("canvas"), sx = src.getContext("2d");
+    var M = 22, dpr = 1, W = 0, H = 0, bw = 0, bh = 0, items = [], col = {}, imgs = {}, hlDrawn = -2, dirty = true;
+    var FONT = '600 10.5px -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, "Segoe UI", Roboto, sans-serif';
+    var X = { v: 0, t: 0, s: 0 }, Wd = { v: 0, t: 0, s: 0 }, Ht = { v: 0, t: 0, s: 0 }, on = false, phase = "", raf = 0, last = 0, settleIdx = 0;
+    var pillH = 0, pillW = 0, expH = 0, expW = 0;
+    function tok(n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+    function icon(i, color) {
+      var key = i + color; if (imgs[key]) return imgs[key];
+      var svg = tb.querySelectorAll("button svg")[i].outerHTML.replace("<svg ", '<svg xmlns="http://www.w3.org/2000/svg" width="52" height="52" ').replace('fill="currentColor"', 'fill="' + color + '"');
+      var im = new Image(); im.onload = function () { dirty = true; }; im.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg); imgs[key] = im; return im;
+    }
+    function layout() {
+      var r = tb.getBoundingClientRect(); dpr = Math.min(3, devicePixelRatio || 1); bw = r.width; bh = r.height; W = bw + 2 * M; H = bh + 2 * M;
+      cv.style.left = (r.left - M) + "px"; cv.style.top = (r.top - M) + "px"; cv.style.width = W + "px"; cv.style.height = H + "px";
+      cv.width = src.width = Math.round(W * dpr); cv.height = src.height = Math.round(H * dpr);
+      items = Array.prototype.map.call(tb.querySelectorAll("button"), function (b) {
+        var ir = b.querySelector("svg").getBoundingClientRect(), rg = document.createRange(); rg.selectNodeContents(b.lastChild); var lr = rg.getBoundingClientRect();
+        return { ix: ir.left - r.left, iy: ir.top - r.top, iw: ir.width, ih: ir.height, lx: lr.left - r.left + lr.width / 2, ly: lr.top - r.top + lr.height / 2, label: b.textContent.trim() };
+      });
+      pillH = bh - 10; pillW = tabW; expH = bh + 14; expW = tabW + 30;
+      col = { bg: tok("--bg"), bar: getComputedStyle(tb).backgroundColor, edge: tok("--bar-edge"), ink: tok("--tab-ink"), kryo: tok("--kryo") };
+      col.dark = /^#0{3,6}$|^#000/.test(col.bg) ? 1 : 0;
+      gl.viewport(0, 0, cv.width, cv.height); dirty = true;
+    }
+    function draw(hl) {
+      sx.setTransform(dpr, 0, 0, dpr, 0, 0); sx.clearRect(0, 0, W, H);
+      var rr = bh / 2; sx.beginPath(); sx.moveTo(M + rr, M); sx.arcTo(M + bw, M, M + bw, M + bh, rr); sx.arcTo(M + bw, M + bh, M, M + bh, rr); sx.arcTo(M, M + bh, M, M, rr); sx.arcTo(M, M, M + bw, M, rr); sx.closePath();
+      sx.fillStyle = col.bg; sx.fill(); sx.fillStyle = col.bar; sx.fill(); sx.strokeStyle = col.edge; sx.lineWidth = .5; sx.stroke();
+      sx.font = FONT; sx.textAlign = "center"; sx.textBaseline = "middle";
+      items.forEach(function (it, i) {
+        var c = i === hl ? col.kryo : col.ink, im = icon(i, c);
+        if (im.complete && im.naturalWidth) sx.drawImage(im, M + it.ix, M + it.iy, it.iw, it.ih);
+        sx.fillStyle = c; sx.fillText(it.label, M + it.lx, M + it.ly + .5);
+      });
+      gl.bindTexture(gl.TEXTURE_2D, tex); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, src);
+      hlDrawn = hl; dirty = false;
+    }
+    function center(i) { return M + 5 + tabW * (i + .5); }
+    function clampX(x) { return Math.max(center(0) - 8, Math.min(center(3) + 8, x)); }
+    function spring(o, k, c, dt) { var a = (o.t - o.v) * k - o.s * c; o.s += a * dt; o.v += o.s * dt; }
+    function frame(now) {
+      var dt = Math.min(.032, (now - last) / 1000 || .016); last = now;
+      spring(X, 420, 30, dt); spring(Wd, 520, 34, dt); spring(Ht, 520, 34, dt);
+      var hl = Math.max(0, Math.min(3, Math.floor((X.v - M - 5) / tabW)));
+      if (dirty || hl !== hlDrawn) draw(hl);
+      var sq = Math.min(Math.abs(X.s) / 2600, .2), w = Wd.v * (1 + sq), h = Ht.v * (1 - sq * .45);
+      var e = Math.max(0, Math.min(1, (Ht.v - pillH) / (expH - pillH)));
+      gl.uniform2f(U.res, W * dpr, H * dpr); gl.uniform2f(U.c, X.v * dpr, (M + bh / 2) * dpr); gl.uniform2f(U.hb, w / 2 * dpr, h / 2 * dpr);
+      gl.uniform1f(U.mag, 1 + .2 * e); gl.uniform1f(U.e, e); gl.uniform1f(U.dark, col.dark);
+      gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT); gl.drawArrays(gl.TRIANGLES, 0, 3);
+      if (phase === "settle" && Math.abs(X.v - X.t) < 1.2 && Math.abs(X.s) < 60) { phase = "shrink"; Wd.t = pillW; Ht.t = pillH; }
+      if (phase === "shrink" && Math.abs(Ht.v - pillH) < .8 && Math.abs(Ht.s) < 40) { phase = ""; on = false; cv.classList.remove("on"); tb.classList.remove("gl"); raf = 0; return; }
+      raf = requestAnimationFrame(frame);
+    }
+    function run() { if (!raf) { last = performance.now(); raf = requestAnimationFrame(frame); } }
+    return {
+      press: function (clientX) {
+        if (!on) { layout(); X.v = center(tabIdx); X.s = 0; Wd.v = pillW; Ht.v = pillH; Wd.s = Ht.s = 0; }
+        on = true; phase = "hold"; Wd.t = expW; Ht.t = expH; X.t = clampX(clientX - tb.getBoundingClientRect().left + M);
+        cv.classList.add("on"); tb.classList.add("gl"); run();
+      },
+      move: function (clientX) { if (on) X.t = clampX(clientX - tb.getBoundingClientRect().left + M); },
+      release: function (i) { if (!on) return; X.t = center(i); phase = "settle"; run(); },
+      relayout: function () { if (!on) dirty = true; }
+    };
+  })();
+  addEventListener("resize", function () { GL && GL.relayout(); });
+
+  var drag = null, lensT;
+  function idxAt(cx) { var r = tb.getBoundingClientRect(); return Math.max(0, Math.min(3, Math.floor((cx - r.left - 5) / tabW))); }
+  tb.addEventListener("pointerdown", function (e) {
+    if (e.button > 0) return;
+    drag = { x0: e.clientX, moved: false, last: idxAt(e.clientX), x: tabIdx * tabW };
+    try { tb.setPointerCapture(e.pointerId); } catch (er) {}
+    clearTimeout(lensT); haptic("light");
+    if (GL) GL.press(e.clientX); else tb.classList.add("lens", "held");
+  });
+  tb.addEventListener("pointermove", function (e) {
+    if (!drag) return;
+    if (!drag.moved && Math.abs(e.clientX - drag.x0) < 6) return;
+    drag.moved = true;
+    var r = tb.getBoundingClientRect(); drag.x = Math.max(0, Math.min(3 * tabW, e.clientX - r.left - 5 - tabW / 2));
+    if (GL) GL.move(e.clientX); else { tb.classList.add("dragging"); place(drag.x); }
+    var i = idxAt(e.clientX); if (i !== drag.last) { drag.last = i; haptic("sel"); }
+  });
+  function release(e, cancel) {
+    if (!drag) return;
+    var moved = drag.moved, i = moved ? Math.round(drag.x / tabW) : idxAt(e.clientX); drag = null;
+    if (cancel && !moved) i = tabIdx;
+    go(TABS[i]);
+    if (GL) GL.release(i);
+    else { tb.classList.remove("dragging", "held"); lensT = setTimeout(function () { tb.classList.remove("lens"); }, moved ? 110 : 240); }
+  }
+  tb.addEventListener("pointerup", function (e) { release(e, false); });
+  tb.addEventListener("pointercancel", function (e) { release(e, true); });
+  tb.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { var b = e.target.closest("button"); if (b) { e.preventDefault(); go(b.dataset.tab); } } });
+
+  function go(tab) {
+    var i = TABS.indexOf(tab), moved = i !== tabIdx;
+    tabIdx = i; place(i * tabW);
+    if (!moved) return;
+    TABS.forEach(function (t) {
+      var sec = $(t); sec.hidden = t !== tab; sec.classList.toggle("in", t === tab);
+      var b = $("t-" + t); if (t === tab) { b.setAttribute("aria-current", "page"); $("smalltitle").textContent = b.dataset.title; } else b.removeAttribute("aria-current");
+    });
+    $("scroll").scrollTop = 0; onScroll(); haptic("sel");
+  }
+  function onScroll() { $("navbar").classList.toggle("solid", $("scroll").scrollTop > 40); }
+  $("scroll").addEventListener("scroll", onScroll, { passive: true });
+
+  function setState(name) {
+    var first = state === "", changed = state !== name, s = STATES[name]; state = name;
+    document.querySelectorAll(".seg button").forEach(function (b) { b.setAttribute("aria-pressed", b.dataset.state === name ? "true" : "false"); });
+    $("thumb").style.transform = "translateX(" + ORDER.indexOf(name) * 100 + "%)";
+    $("p-kind").textContent = s.kind; $("p-tier").textContent = s.tier; $("p-untilk").textContent = s.untilK; $("p-until").textContent = s.until;
+    $("c-dev").textContent = s.dev; $("h-note").textContent = s.note; $("home-cta").textContent = s.cta;
+    $("ring").toggleAttribute("hidden", s.used < 0);
+    $("ringfg").setAttribute("stroke-dasharray", "0 100");
+    if (s.used >= 0) requestAnimationFrame(function () { requestAnimationFrame(function () { $("ringfg").setAttribute("stroke-dasharray", s.used * 10 + " 100"); }); });
+    if (s.used >= 0 && changed) countUp($("c-left"), s.used, " из 10 ГБ"); else $("c-left").textContent = s.left;
+    if (changed && !first) { haptic("sel"); pop($("p-tier")); }
+    if (changed && !first && name === "paid") { var r = pass.getBoundingClientRect(); burst(r.left + r.width / 2, r.top + r.height / 2, 24); }
+    if (name !== "real") try { localStorage.setItem("kryo-demo-state", name); } catch (e) {}
+  }
+  document.querySelectorAll(".seg button").forEach(function (b) { b.addEventListener("click", function () { setState(b.dataset.state); }); });
+
+  var it;
+  function island(text, color) {
+    var el = $("island"); $("island-t").textContent = text; $("island-dot").style.background = color || "";
+    el.classList.remove("on"); void el.offsetWidth; el.classList.add("on");
+    clearTimeout(it); it = setTimeout(function () { el.classList.remove("on"); }, 2600);
+  }
+
+  // шторка: открыть, закрыть, смахнуть вниз
+  var sheet = $("sheet");
+  function openSheet() { sheet.style.setProperty("--drag", "0px"); document.body.classList.add("sheet-open"); haptic("light"); setTimeout(function () { $("sh-go").focus(); }, 350); }
+  function closeSheet() { document.body.classList.remove("sheet-open"); sheet.style.setProperty("--drag", "0px"); }
+  var sd = null;
+  sheet.addEventListener("pointerdown", function (e) { if (e.target.closest("button")) return; sd = { y0: e.clientY, dy: 0 }; sheet.classList.add("dragging"); try { sheet.setPointerCapture(e.pointerId); } catch (er) {} });
+  sheet.addEventListener("pointermove", function (e) { if (!sd) return; sd.dy = Math.max(0, e.clientY - sd.y0); sheet.style.setProperty("--drag", (sd.dy < 0 ? 0 : sd.dy) + "px"); });
+  function sheetUp() { if (!sd) return; var dy = sd.dy; sd = null; sheet.classList.remove("dragging"); if (dy > 90) closeSheet(); else sheet.style.setProperty("--drag", "0px"); }
+  sheet.addEventListener("pointerup", sheetUp); sheet.addEventListener("pointercancel", sheetUp);
+
+  document.querySelectorAll(".faq").forEach(function (b) {
+    b.addEventListener("click", function () {
+      var open = b.getAttribute("aria-expanded") !== "true"; b.setAttribute("aria-expanded", open ? "true" : "false");
+      $(b.getAttribute("aria-controls")).classList.toggle("open", open); haptic("light");
+    });
+  });
+  $("home-cta").addEventListener("click", function () { if (STATES[state] && STATES[state].tier === "Бесплатный") go("plans"); else openSheet(); });
+  document.querySelectorAll(".btn.add").forEach(function (b) { b.addEventListener("click", openSheet); });
+  $("sh-cancel").addEventListener("click", closeSheet); $("scrim").addEventListener("click", closeSheet);
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeSheet(); });
+  $("sh-go").addEventListener("click", function () {
+    if (REAL) { closeSheet(); bot("connect"); return; }
+    closeSheet(); setTimeout(function () { island("Пропуск добавлен в Happ (демо)"); haptic("ok"); burst(innerWidth / 2, 34, 26); }, 380);
+  });
+  document.querySelectorAll(".plan").forEach(function (p) {
+    p.addEventListener("click", function () {
+      plan = p.dataset.plan; document.querySelectorAll(".plan").forEach(function (q) { q.setAttribute("aria-pressed", q === p ? "true" : "false"); });
+      $("pay").textContent = "Оплатить " + (plan === "3" ? "239 ₽" : "99 ₽"); haptic("sel");
+    });
+  });
+  $("pay").addEventListener("click", function () { if (!bot("buy_" + plan)) island("Здесь откроется оплата ЮKassa", "var(--kryo)"); });
+  $("support").addEventListener("click", function () { if (!bot("support")) island("Откроется чат поддержки", "var(--kryo)"); });
+  $("share").addEventListener("click", function () {
+    if (!REAL) { island("Откроется выбор чата Telegram", "var(--kryo)"); return; }
+    var link = "https://" + $("reflink").textContent, txt = "Kryo VPN — первые 3 дня без ограничений, дальше бесплатно 10 ГБ в месяц";
+    var u = "https://t.me/share/url?url=" + encodeURIComponent(link) + "&text=" + encodeURIComponent(txt);
+    if (TG && TG.openTelegramLink) TG.openTelegramLink(u); else location.href = u;
+  });
+  $("copy").addEventListener("click", function () {
+    var lab = $("copylab"), txt = $("reflink").textContent;
+    var ok = function () { haptic("ok"); lab.textContent = "Скопировано"; pop(lab); setTimeout(function () { lab.textContent = "Скопировать ссылку"; }, 1600); };
+    var sel = function () { var r = document.createRange(); r.selectNodeContents($("reflink")); var s = getSelection(); s.removeAllRanges(); s.addRange(r); island("Ссылка выделена, скопируйте её", "var(--warn)"); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(ok, sel); else sel();
+  });
+
+  var saved = "trial"; try { saved = localStorage.getItem("kryo-demo-state") || "trial"; } catch (e) {}
+  state = ""; setState(STATES[saved] && saved !== "real" ? saved : "trial");
+  var sp = TG && TG.initDataUnsafe ? TG.initDataUnsafe.start_param : null;
+  if (sp) { document.documentElement.classList.add("mode-pending"); verify(sp).then(function (p) { if (p) applyReal(p); else document.documentElement.classList.remove("mode-pending"); }); }
+})();
+</script>
+</body>
+</html>
