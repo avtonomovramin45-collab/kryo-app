@@ -8,7 +8,7 @@
 <meta name="robots" content="noindex, nofollow">
 <meta name="color-scheme" content="light dark">
 <title>Kryo</title>
-<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script id="tgsdk" async src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
 /* Layout: первоклассное приложение iOS. Один яркий объект — ледяной пропуск; всё остальное спокойное и системное:
    сплошные сгруппированные списки с цветными значками, стекло только на плавающем (панель вкладок, шапка при прокрутке, шторка). */
@@ -414,20 +414,24 @@ body { margin: 0; }
 
   // ── рабочий режим: Telegram и подписанные данные клиента ──
   var PUBKEY = null;   // открытый ключ подписи бота (JWK P-256); закрытый — только на боевом
-  var TG = (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initData !== undefined) ? window.Telegram.WebApp : null;
-  var REAL = null;           // проверенные данные клиента; null — демо
-  // вне Telegram в чужой рамке данных не показываем
-  var framed = false; try { framed = window.top !== window.self; } catch (e) { framed = true; }
-  if (framed) { var ao = location.ancestorOrigins; if (ao && ao.length && ao[0] !== "https://web.telegram.org") TG = null; }
+  // скрипт Telegram грузится асинхронно (telegram.org без VPN в России недоступен — страница не должна его ждать)
+  var TG = null, REAL = null; // REAL — проверенные данные клиента; null — демо
   function themeSync() {
     if (!TG) return;
     var dark = TG.colorScheme === "dark"; document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
     var bg = dark ? "#000000" : "#f2f2f7";
     try { TG.setHeaderColor(bg); TG.setBackgroundColor(bg); if (TG.setBottomBarColor) TG.setBottomBarColor(bg); } catch (e) {}
   }
-  if (TG) {
+  function initTG() {
+    if (TG || !(window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initData)) return; // вне Telegram initData пустая
+    // вне Telegram в чужой рамке данных не показываем
+    var framed = false; try { framed = window.top !== window.self; } catch (e) { framed = true; }
+    if (framed) { var ao = location.ancestorOrigins; if (ao && ao.length && ao[0] !== "https://web.telegram.org") return; }
+    TG = window.Telegram.WebApp;
     try { TG.ready(); TG.expand(); if (TG.disableVerticalSwipes) TG.disableVerticalSwipes(); } catch (e) {}
     themeSync(); TG.onEvent("themeChanged", themeSync);
+    var sp = TG.initDataUnsafe ? TG.initDataUnsafe.start_param : null;
+    if (sp) { document.documentElement.classList.add("mode-pending"); verify(sp).then(function (p) { if (p) applyReal(p); else document.documentElement.classList.remove("mode-pending"); }); }
   }
   function bot(param) {
     if (!REAL) return false;
@@ -880,8 +884,7 @@ body { margin: 0; }
 
   var saved = "trial"; try { saved = localStorage.getItem("kryo-demo-state") || "trial"; } catch (e) {}
   state = ""; setState(STATES[saved] && saved !== "real" ? saved : "trial");
-  var sp = TG && TG.initDataUnsafe ? TG.initDataUnsafe.start_param : null;
-  if (sp) { document.documentElement.classList.add("mode-pending"); verify(sp).then(function (p) { if (p) applyReal(p); else document.documentElement.classList.remove("mode-pending"); }); }
+  initTG(); var sdk = $("tgsdk"); if (sdk && !TG) sdk.addEventListener("load", initTG);
 })();
 </script>
 </body>
