@@ -413,7 +413,7 @@ body { margin: 0; }
   var calm = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   // ── рабочий режим: Telegram и подписанные данные клиента ──
-  var PUBKEY = null;   // открытый ключ подписи бота (JWK P-256); закрытый — только на боевом
+  var PUBKEY = { kty: "EC", crv: "P-256", x: "y4NcuhkUs47LxHsS1P_HxhBxE3dYIuJep_mIZsZBtQ0", y: "L0l9VPAvqcZFSFuBTjS3WIxQE92ADXbWJhecB3Pzc2g", ext: true };   // открытый ключ подписи бота (JWK P-256); закрытый — только на боевом
   // скрипт Telegram грузится асинхронно (telegram.org без VPN в России недоступен — страница не должна его ждать)
   var TG = null, REAL = null; // REAL — проверенные данные клиента; null — демо
   function themeSync() {
@@ -456,14 +456,14 @@ body { margin: 0; }
   var MON = ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"];
   function day(iso) { var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || ""); return m ? (+m[3]) + " " + MON[+m[2] - 1] : "—"; }
   function realState(p) {
-    var used = p.g ? p.g[0] / 10 : 0, lim = p.g ? p.g[1] : 0, dv = p.d || [1, 1];
+    var used = p.g ? p.g[0] / 10 : 0, lim = p.g ? p.g[1] : 0, dv = p.d || [1], devs = dv.length > 1 ? dv[0] + " из " + dv[1] : "до " + dv[0];
     var gb = function (x) { return x.toFixed(1).replace(".", ","); };
     var plan = p.pl === 3 ? "3 месяца" : p.pl === 1 ? "1 месяц" : "Подписка";
-    if (p.t === "free") return { kind: "Тариф", tier: "Бесплатный", untilK: "Лимит обновится", until: day(p.u), dev: dv[0] + " из " + dv[1], used: used,
+    if (p.t === "free") return { kind: "Тариф", tier: "Бесплатный", untilK: "Лимит обновится", until: day(p.u), dev: devs, used: used,
       left: gb(used) + " из " + lim + " ГБ", note: "Нужен безлимит или второе устройство — подписка от 99 ₽ в месяц.", cta: "Снять лимит за 99 ₽" };
-    if (p.t === "trial") return { kind: "Тариф", tier: "Пробный", untilK: "Действует до", until: day(p.u), dev: dv[0] + " из " + dv[1], used: -1,
+    if (p.t === "trial") return { kind: "Тариф", tier: "Пробный", untilK: "Действует до", until: day(p.u), dev: devs, used: -1,
       left: "Без ограничений", note: "Первые 3 дня без ограничений. Потом пропуск станет бесплатным: 10 ГБ в месяц на одном устройстве.", cta: "Добавить в Happ" };
-    return { kind: "Подписка", tier: plan, untilK: "Действует до", until: day(p.u), dev: dv[0] + " из " + dv[1], used: -1,
+    return { kind: "Подписка", tier: plan, untilK: "Действует до", until: day(p.u), dev: devs, used: -1,
       left: "Без ограничений", note: "Продлить можно заранее: новые дни прибавятся к сроку.", cta: "Добавить в Happ" };
   }
   function applyReal(p) {
